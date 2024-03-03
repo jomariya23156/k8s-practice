@@ -9,7 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GKE_PROJECT }}
   GKE_CLUSTER: k8s-practice-cluster # cluster name
   GKE_ZONE: asia-southeast1-a # cluster zone
-  IMAGE_TAG: $GITHUB_SHA # use commit sha as a image tag
+  IMAGE_TAG: ${{ github.sha }} # use commit sha as a image tag
   GAR_ZONE: asia-southeast1 # artifact registry zone
   GAR_REPO: k8s-practice-registry # artifact registry repository
 
@@ -38,7 +38,7 @@ jobs:
 
     # Get GKE credentials
     - name: Setup GKE credentials
-      uses: google-github-actions/get-gke-credentials@v0
+      uses: google-github-actions/get-gke-credentials@v2
       with:
         cluster_name: ${{ env.GKE_CLUSTER }}
         location: ${{ env.GKE_ZONE }}
