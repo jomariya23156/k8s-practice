@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
         - name: client
-          image: rallycoding/multi-client
+          image: asia-southeast1-docker.pkg.dev/k8s-practice-416103/k8s-practice-registry/multi-client:latest
           ports:
             - containerPort: 3000

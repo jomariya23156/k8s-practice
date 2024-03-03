@@ -1,0 +1,81 @@
+name: Build and Deploy to GKE
+
+on:
+  push:
+    branches:
+      - master
+
+env:
+  PROJECT_ID: ${{ secrets.GKE_PROJECT }}
+  GKE_CLUSTER: k8s-practice-cluster # cluster name
+  GKE_ZONE: asia-southeast1-a # cluster zone
+  IMAGE_TAG: $GITHUB_SHA # use commit sha as a image tag
+  GAR_ZONE: asia-southeast1 # artifact registry zone
+  GAR_REPO: k8s-practice-registry # artifact registry repository
+
+jobs:
+  setup-build-publish-deploy:
+    name: Setup, Build, Publish, and Deploy to GCP
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    # setup gcloud cli
+    - name: Authenticate
+      id: auth
+      uses: google-github-actions/auth@v0
+      with:
+        credentials_json: ${{ secrets.GKE_SA_KEY }}
+    
+    # config docker to use gcloud cli tool as a credential
+    # helper for authentication
+    - name: Docker config
+      run: |-
+        gcloud auth print-access-token | docker login -u oauth2accesstoken --password-stdin https://$GAR_ZONE-docker.pkg.dev
+
+    # Get GKE credentials
+    - name: Setup GKE credentials
+      uses: google-github-actions/get-gke-credentials@v0
+      with:
+        cluster_name: ${{ env.GKE_CLUSTER }}
+        location: ${{ env.GKE_ZONE }}
+    
+    # build Docker images
+    - name: Build client image
+      run: |-
+        docker build \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-client:$IMAGE_TAG" \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-client:latest" \
+          -f ./client/Dockerfile \
+          ./client
+    
+    - name: Build server image
+      run: |-
+        docker build \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-server:$IMAGE_TAG" \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-server:latest" \
+          -f ./server/Dockerfile \
+          ./server
+    
+    - name: Build worker image
+      run: |-
+        docker build \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:$IMAGE_TAG" \
+          --tag "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:latest" \
+          -f ./worker/Dockerfile \
+          ./worker
+    
+    - name: Publish all images
+      run: |-
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-client:$IMAGE_TAG" && \
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-client:latest" && \
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-server:$IMAGE_TAG" && \
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-server:latest" && \
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:$IMAGE_TAG" && \
+        docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:latest"
+
+    -name: Deploy
+      run: kubectl apply -f k8s/
