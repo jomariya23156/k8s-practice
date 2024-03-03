@@ -77,5 +77,5 @@ jobs:
         docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:$IMAGE_TAG" && \
         docker push "$GAR_ZONE-docker.pkg.dev/$PROJECT_ID/$GAR_REPO/multi-worker:latest"
 
-    -name: Deploy
+    - name: Deploy
       run: kubectl apply -f k8s/
